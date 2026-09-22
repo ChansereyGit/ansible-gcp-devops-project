@@ -5,7 +5,8 @@
 # ============================================================================
 - name: Create GCP Virtual Machines
   hosts: localhost
-  gather_facts: true
+  connection: local
+  gather_facts: false
   vars_files:
     - ../vars/config.yaml
   
