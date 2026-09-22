@@ -57,7 +57,7 @@ This script installs and configures:
 #### Option 1: Direct Download and Run
 
 ```bash
-# On the ansible-controller VM
+# On jenkins-server (your controller VM)
 wget https://raw.githubusercontent.com/YOUR_REPO/main/scripts/bootstrap-controller.sh
 chmod +x bootstrap-controller.sh
 ./bootstrap-controller.sh

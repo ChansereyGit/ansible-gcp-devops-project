@@ -55,16 +55,6 @@ ubuntu_image: "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd
 # VM Definitions
 # ============================================================================
 vms:
-  - name: "ansible-controller"
-    machine_type: "{{ machine_specs.medium.machine_type }}"
-    image: "{{ ubuntu_image }}"
-    zone: "{{ google_zone }}"
-    disk_size: "{{ machine_specs.medium.disk_size }}"
-    disk_type: "{{ machine_specs.medium.disk_type }}"
-    tags:
-      - ssh-allowed
-    group: "controller"
-    
   - name: "jenkins-vm"
     machine_type: "{{ machine_specs.large.machine_type }}"
     image: "{{ ubuntu_image }}"

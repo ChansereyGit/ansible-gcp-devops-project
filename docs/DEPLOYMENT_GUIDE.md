@@ -96,7 +96,6 @@ vim ansible/vars/config.yaml
 just create-infrastructure
 
 # Expected output:
-# - ansible-controller created
 # - jenkins-vm created
 # - sonarqube-vm created
 # - nexus-vm created
@@ -118,9 +117,9 @@ just list-gcp-instances
 Example output:
 ```
 jenkins-vm: 34.101.123.45
+jenkins-vm: 34.101.123.45
 sonarqube-vm: 34.101.123.46
 nexus-vm: 34.101.123.47
-ansible-controller: 34.101.123.48
 ```
 
 ---
@@ -385,7 +384,7 @@ just backup-all
 
 ### 10.2 Schedule Regular Maintenance
 
-Add to crontab on ansible-controller:
+Add to crontab on jenkins-server (your controller VM):
 
 ```bash
 # Weekly backup at 2 AM Sunday

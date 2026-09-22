@@ -84,7 +84,6 @@ graph TB
 
 | Component | VM Name | Machine Type | vCPU | RAM | Disk | Services |
 |-----------|---------|--------------|------|-----|------|----------|
-| **Ansible Controller** | ansible-controller | e2-medium | 2 | 4 GB | 30 GB | Ansible, gcloud CLI |
 | **Jenkins** | jenkins-vm | e2-standard-2 | 2 | 8 GB | 50 GB | Jenkins, Docker, Nginx |
 | **SonarQube** | sonarqube-vm | e2-medium | 2 | 4 GB | 50 GB | SonarQube, PostgreSQL 16, Nginx |
 | **Nexus** | nexus-vm | e2-medium | 2 | 4 GB | 50 GB | Nexus Repository, Nginx |
@@ -696,7 +695,7 @@ Based on 24/7 operation in `asia-southeast1`:
 1. **Stop VMs when not in use:**
    ```bash
    gcloud compute instances stop --zone=asia-southeast1-c \
-     jenkins-vm sonarqube-vm nexus-vm ansible-controller
+     jenkins-vm sonarqube-vm nexus-vm
    ```
 
 2. **Use preemptible VMs** (not recommended for production):
