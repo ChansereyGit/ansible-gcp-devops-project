@@ -42,7 +42,7 @@
           - requests
         state: present
         executable: pip3
-      become: true
+        extra_args: --user
 
     - name: Read SSH public key
       slurp:

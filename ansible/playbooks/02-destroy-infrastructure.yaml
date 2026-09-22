@@ -55,7 +55,7 @@
           - requests
         state: present
         executable: pip3
-      become: true
+        extra_args: --user
 
     - name: Delete GCP compute instances
       google.cloud.gcp_compute_instance:
