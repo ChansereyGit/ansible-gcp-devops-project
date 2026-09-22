@@ -37,13 +37,13 @@
       when: gcloud_auth_check.stdout == ""
 
     - name: Install Python GCP libraries (if not present)
-      pip:
+      apt:
         name:
-          - google-auth
-          - requests
+          - python3-google-auth
+          - python3-requests
         state: present
-        executable: pip3
-        extra_args: --user
+      become: true
+      ignore_errors: yes
 
     - name: Read SSH public key
       slurp:
