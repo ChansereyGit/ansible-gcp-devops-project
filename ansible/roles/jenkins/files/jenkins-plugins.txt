@@ -1,0 +1,30 @@
+# Common Jenkins Plugins
+# Install these after initial setup via Jenkins UI or CLI
+
+# Core plugins
+workflow-aggregator
+git
+github
+docker-workflow
+pipeline-stage-view
+
+# Integration plugins
+sonar
+nexus-artifact-uploader
+slack
+
+# Build tools
+gradle
+maven-plugin
+nodejs
+
+# Quality & Security
+warnings-ng
+code-coverage-api
+
+# Utilities
+configuration-as-code
+job-dsl
+ansicolor
+timestamper
+build-timeout

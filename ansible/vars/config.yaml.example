@@ -1,0 +1,141 @@
+---
+# ============================================================================
+# GCP Project Configuration
+# ============================================================================
+google_project_id: "your-gcp-project-id"
+google_zone: "asia-southeast1-c"
+google_region: "asia-southeast1"
+
+# Path to GCP Application Default Credentials
+adc_path: "/home/YOUR_USERNAME/.config/gcloud/application_default_credentials.json"
+
+# ============================================================================
+# SSH Configuration
+# ============================================================================
+ssh_username: "YOUR_USERNAME"
+ssh_public_key_path: "/home/YOUR_USERNAME/.ssh/id_ed25519.pub"
+ssh_private_key_path: "/home/YOUR_USERNAME/.ssh/id_ed25519"
+
+# ============================================================================
+# Domain Configuration
+# ============================================================================
+base_domain: "yourdomain.com"
+
+jenkins_domain: "jenkins.yourdomain.com"
+sonarqube_domain: "sonarqube.yourdomain.com"
+nexus_domain: "nexus.yourdomain.com"
+
+letsencrypt_email: "admin@yourdomain.com"
+
+# ============================================================================
+# Machine Specifications
+# ============================================================================
+machine_specs:
+  medium:
+    machine_type: "e2-medium"
+    disk_size: 30
+    disk_type: "pd-standard"
+  
+  large:
+    machine_type: "e2-standard-2"
+    disk_size: 50
+    disk_type: "pd-standard"
+
+# ============================================================================
+# Ubuntu Image
+# ============================================================================
+ubuntu_image: "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
+
+# ============================================================================
+# VM Definitions
+# ============================================================================
+vms:
+  - name: "ansible-controller"
+    machine_type: "{{ machine_specs.medium.machine_type }}"
+    image: "{{ ubuntu_image }}"
+    zone: "{{ google_zone }}"
+    disk_size: "{{ machine_specs.medium.disk_size }}"
+    disk_type: "{{ machine_specs.medium.disk_type }}"
+    tags:
+      - ssh-allowed
+    group: "controller"
+    
+  - name: "jenkins-vm"
+    machine_type: "{{ machine_specs.large.machine_type }}"
+    image: "{{ ubuntu_image }}"
+    zone: "{{ google_zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"
+    tags:
+      - http-server
+      - https-server
+      - ssh-allowed
+    group: "jenkins"
+    
+  - name: "sonarqube-vm"
+    machine_type: "{{ machine_specs.medium.machine_type }}"
+    image: "{{ ubuntu_image }}"
+    zone: "{{ google_zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"
+    tags:
+      - http-server
+      - https-server
+      - ssh-allowed
+    group: "sonarqube"
+    
+  - name: "nexus-vm"
+    machine_type: "{{ machine_specs.medium.machine_type }}"
+    image: "{{ ubuntu_image }}"
+    zone: "{{ google_zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"
+    tags:
+      - http-server
+      - https-server
+      - ssh-allowed
+    group: "nexus"
+
+# ============================================================================
+# Application Ports
+# ============================================================================
+jenkins_port: 8080
+sonarqube_port: 9000
+nexus_port: 8081
+nexus_docker_port: 5000
+
+# ============================================================================
+# Database Configuration
+# ============================================================================
+sonarqube_db_name: "sonarqube"
+sonarqube_db_user: "sonar"
+sonarqube_db_password: "CHANGE_THIS_PASSWORD"
+
+nexus_admin_password: "CHANGE_THIS_PASSWORD"
+
+# ============================================================================
+# Packages
+# ============================================================================
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - tree
+  - unzip
+  - software-properties-common
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - python3-pip
+  - jq
+
+controller_packages:
+  - fish
+  - tmux
+  - gh
+
+install_ohmyzsh: true
+ohmyzsh_theme: "robbyrussell"

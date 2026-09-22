@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    restart: always
+    user: root
+    ports:
+      - "{{ jenkins_port }}:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JENKINS_OPTS=--prefix=/
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=true -Xmx2g -Xms512m
+    networks:
+      - jenkins_net
+
+volumes:
+  jenkins_home:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/{{ ansible_user }}/jenkins/data
+
+networks:
+  jenkins_net:
+    driver: bridge
+    name: jenkins_net

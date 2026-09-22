@@ -1,0 +1,19 @@
+{
+  "_comment": "This file shows the structure of gcp_instances.json after VM creation",
+  "results": [
+    {
+      "name": "vm-name",
+      "machineType": "zones/asia-southeast1-c/machineTypes/e2-medium",
+      "zone": "zones/asia-southeast1-c",
+      "networkInterfaces": [
+        {
+          "accessConfigs": [
+            {
+              "natIP": "34.101.xxx.xxx"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

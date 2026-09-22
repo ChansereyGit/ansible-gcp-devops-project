@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  nexus:
+    image: sonatype/nexus3:latest
+    container_name: nexus
+    restart: always
+    ports:
+      - "{{ nexus_port }}:8081"
+      - "{{ nexus_docker_port }}:5000"
+    volumes:
+      - nexus_data:/nexus-data
+    environment:
+      - INSTALL4J_ADD_VM_PARAMS=-Xms512m -Xmx2g -XX:MaxDirectMemorySize=2g
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+volumes:
+  nexus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/{{ ansible_user }}/nexus/data
+
+networks:
+  default:
+    name: nexus_net
+    driver: bridge

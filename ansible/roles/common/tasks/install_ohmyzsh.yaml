@@ -1,0 +1,56 @@
+---
+# ============================================================================
+# Task: Install Oh My Zsh
+# Purpose: Install and configure Oh My Zsh shell
+# ============================================================================
+
+- name: Install zsh
+  apt:
+    name: zsh
+    state: present
+
+- name: Check if Oh My Zsh is already installed
+  stat:
+    path: "/home/{{ ansible_user }}/.oh-my-zsh"
+  register: ohmyzsh_stat
+
+- name: Download Oh My Zsh installer
+  get_url:
+    url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+    dest: /tmp/install-ohmyzsh.sh
+    mode: '0755'
+  when: not ohmyzsh_stat.stat.exists
+
+- name: Install Oh My Zsh
+  shell: |
+    sh /tmp/install-ohmyzsh.sh --unattended
+  args:
+    executable: /bin/bash
+    creates: "/home/{{ ansible_user }}/.oh-my-zsh"
+  become: yes
+  become_user: "{{ ansible_user }}"
+  when: not ohmyzsh_stat.stat.exists
+
+- name: Set Oh My Zsh theme
+  lineinfile:
+    path: "/home/{{ ansible_user }}/.zshrc"
+    regexp: '^ZSH_THEME='
+    line: 'ZSH_THEME="{{ ohmyzsh_theme | default("robbyrussell") }}"'
+    state: present
+  become: yes
+  become_user: "{{ ansible_user }}"
+
+- name: Change default shell to zsh
+  user:
+    name: "{{ ansible_user }}"
+    shell: /usr/bin/zsh
+  when: ansible_user != 'root'
+
+- name: Clean up installer
+  file:
+    path: /tmp/install-ohmyzsh.sh
+    state: absent
+
+- name: Display Oh My Zsh installation status
+  debug:
+    msg: "✓ Oh My Zsh installed successfully for {{ ansible_user }}"

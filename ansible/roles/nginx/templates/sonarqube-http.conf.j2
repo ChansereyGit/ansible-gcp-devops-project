@@ -1,0 +1,33 @@
+# Nginx configuration for SonarQube (HTTP only - before SSL)
+# This will be updated by certbot to add HTTPS
+
+server {
+    listen 80;
+    server_name {{ sonarqube_domain }};
+
+    # Allow Let's Encrypt ACME challenge
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        proxy_pass http://localhost:{{ sonarqube_port }};
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SonarQube specific settings
+        proxy_buffering off;
+        proxy_request_buffering off;
+        
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 90s;
+        proxy_read_timeout 90s;
+
+        # Max upload size
+        client_max_body_size 100M;
+    }
+}

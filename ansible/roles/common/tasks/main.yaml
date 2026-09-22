@@ -1,0 +1,129 @@
+---
+# ============================================================================
+# Role: common
+# Purpose: Base system configuration and common packages
+# ============================================================================
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Upgrade all packages
+  apt:
+    upgrade: dist
+    autoremove: yes
+    autoclean: yes
+
+- name: Install common packages
+  apt:
+    name: "{{ common_packages }}"
+    state: present
+  when: common_packages is defined
+
+- name: Install controller-specific packages
+  apt:
+    name: "{{ controller_packages }}"
+    state: present
+  when:
+    - controller_packages is defined
+    - "'controller' in group_names"
+
+- name: Set timezone to Asia/Bangkok
+  timezone:
+    name: Asia/Bangkok
+
+- name: Ensure Python pip is installed
+  apt:
+    name:
+      - python3-pip
+      - python3-venv
+    state: present
+
+- name: Install useful Python packages
+  pip:
+    name:
+      - pyyaml
+      - jmespath
+      - netaddr
+    executable: pip3
+    state: present
+
+- name: Configure system limits
+  pam_limits:
+    domain: '*'
+    limit_type: "{{ item.limit_type }}"
+    limit_item: "{{ item.limit_item }}"
+    value: "{{ item.value }}"
+  loop:
+    - { limit_type: 'soft', limit_item: 'nofile', value: '65536' }
+    - { limit_type: 'hard', limit_item: 'nofile', value: '65536' }
+    - { limit_type: 'soft', limit_item: 'nproc', value: '65536' }
+    - { limit_type: 'hard', limit_item: 'nproc', value: '65536' }
+
+- name: Set sysctl parameters for SonarQube/Elasticsearch
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  loop:
+    - { name: 'vm.max_map_count', value: '262144' }
+    - { name: 'fs.file-max', value: '65536' }
+
+- name: Disable swap permanently
+  shell: |
+    swapoff -a
+    sed -i '/ swap / s/^/#/' /etc/fstab
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Check if swap is disabled
+  shell: swapon --show
+  register: swap_status
+  changed_when: false
+  failed_when: false
+
+- name: Display swap status
+  debug:
+    msg: "Swap status: {{ 'Disabled' if swap_status.stdout == '' else 'Enabled' }}"
+
+- name: Install Oh My Zsh for users
+  include_tasks: install_ohmyzsh.yaml
+  when:
+    - install_ohmyzsh is defined
+    - install_ohmyzsh | bool
+    - "'controller' in group_names"
+
+- name: Create tools directory
+  file:
+    path: "/home/{{ ansible_user }}/tools"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Install GitHub CLI (gh)
+  block:
+    - name: Add GitHub CLI repository key
+      apt_key:
+        url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+        state: present
+
+    - name: Add GitHub CLI repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+        state: present
+        filename: github-cli
+
+    - name: Install GitHub CLI
+      apt:
+        name: gh
+        state: present
+        update_cache: yes
+  when: "'controller' in group_names"
+
+- name: Display common role completion
+  debug:
+    msg: "✓ Common system configuration completed"

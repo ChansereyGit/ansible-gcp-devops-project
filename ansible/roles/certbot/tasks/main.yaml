@@ -1,0 +1,131 @@
+---
+# ============================================================================
+# Role: certbot
+# Purpose: Install Certbot and configure Let's Encrypt SSL certificates
+# ============================================================================
+
+- name: Install Certbot and Nginx plugin
+  apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: yes
+
+- name: Ensure Nginx is running
+  systemd:
+    name: nginx
+    state: started
+
+- name: Check if certificate already exists for Jenkins
+  stat:
+    path: "/etc/letsencrypt/live/{{ jenkins_domain }}/fullchain.pem"
+  register: jenkins_cert
+  when: "'jenkins' in group_names"
+
+- name: Check if certificate already exists for SonarQube
+  stat:
+    path: "/etc/letsencrypt/live/{{ sonarqube_domain }}/fullchain.pem"
+  register: sonarqube_cert
+  when: "'sonarqube' in group_names"
+
+- name: Check if certificate already exists for Nexus
+  stat:
+    path: "/etc/letsencrypt/live/{{ nexus_domain }}/fullchain.pem"
+  register: nexus_cert
+  when: "'nexus' in group_names"
+
+- name: Display SSL setup instructions
+  debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "⚠️  SSL CERTIFICATE SETUP REQUIRED"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - ""
+      - "Before running certbot, ensure DNS records are configured:"
+      - ""
+      - "{% if 'jenkins' in group_names %}Jenkins:    {{ jenkins_domain }} → {{ ansible_default_ipv4.address }}{% endif %}"
+      - "{% if 'sonarqube' in group_names %}SonarQube: {{ sonarqube_domain }} → {{ ansible_default_ipv4.address }}{% endif %}"
+      - "{% if 'nexus' in group_names %}Nexus:     {{ nexus_domain }} → {{ ansible_default_ipv4.address }}{% endif %}"
+      - ""
+      - "Once DNS is configured, obtain certificates:"
+      - ""
+      - "{% if 'jenkins' in group_names %}  sudo certbot --nginx -d {{ jenkins_domain }} --non-interactive --agree-tos -m {{ letsencrypt_email }}{% endif %}"
+      - "{% if 'sonarqube' in group_names %}  sudo certbot --nginx -d {{ sonarqube_domain }} --non-interactive --agree-tos -m {{ letsencrypt_email }}{% endif %}"
+      - "{% if 'nexus' in group_names %}  sudo certbot --nginx -d {{ nexus_domain }} --non-interactive --agree-tos -m {{ letsencrypt_email }}{% endif %}"
+      - ""
+      - "Or run all at once (if DNS is ready):"
+      - "  just setup-ssl"
+      - ""
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+- name: Obtain SSL certificate for Jenkins
+  command: >
+    certbot --nginx
+    -d {{ jenkins_domain }}
+    --non-interactive
+    --agree-tos
+    -m {{ letsencrypt_email }}
+    --redirect
+  when:
+    - "'jenkins' in group_names"
+    - not jenkins_cert.stat.exists
+  register: jenkins_certbot_result
+  ignore_errors: yes
+
+- name: Obtain SSL certificate for SonarQube
+  command: >
+    certbot --nginx
+    -d {{ sonarqube_domain }}
+    --non-interactive
+    --agree-tos
+    -m {{ letsencrypt_email }}
+    --redirect
+  when:
+    - "'sonarqube' in group_names"
+    - not sonarqube_cert.stat.exists
+  register: sonarqube_certbot_result
+  ignore_errors: yes
+
+- name: Obtain SSL certificate for Nexus
+  command: >
+    certbot --nginx
+    -d {{ nexus_domain }}
+    --non-interactive
+    --agree-tos
+    -m {{ letsencrypt_email }}
+    --redirect
+  when:
+    - "'nexus' in group_names"
+    - not nexus_cert.stat.exists
+  register: nexus_certbot_result
+  ignore_errors: yes
+
+- name: Display SSL certificate results
+  debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "SSL Certificate Status:"
+      - "{% if 'jenkins' in group_names %}Jenkins:    {% if jenkins_certbot_result is succeeded %}✓ Obtained{% elif jenkins_cert.stat.exists %}✓ Already exists{% else %}✗ Failed - Check DNS{% endif %}{% endif %}"
+      - "{% if 'sonarqube' in group_names %}SonarQube: {% if sonarqube_certbot_result is succeeded %}✓ Obtained{% elif sonarqube_cert.stat.exists %}✓ Already exists{% else %}✗ Failed - Check DNS{% endif %}{% endif %}"
+      - "{% if 'nexus' in group_names %}Nexus:     {% if nexus_certbot_result is succeeded %}✓ Obtained{% elif nexus_cert.stat.exists %}✓ Already exists{% else %}✗ Failed - Check DNS{% endif %}{% endif %}"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+- name: Setup auto-renewal with cron
+  cron:
+    name: "Certbot automatic renewal"
+    minute: "{{ certbot_auto_renew_minute | default('30') }}"
+    hour: "{{ certbot_auto_renew_hour | default('3') }}"
+    job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+    user: root
+    state: present
+
+- name: Test certificate renewal (dry run)
+  command: certbot renew --dry-run
+  register: certbot_test
+  changed_when: false
+  failed_when: false
+
+- name: Display renewal test result
+  debug:
+    msg: "{{ '✓ Certificate renewal test successful' if certbot_test.rc == 0 else '⚠️  Certificate renewal test failed - This is normal if DNS is not configured yet' }}"

@@ -1,0 +1,62 @@
+---
+# ============================================================================
+# Role: nginx
+# Purpose: Install and configure Nginx as reverse proxy
+# ============================================================================
+
+- name: Install Nginx
+  apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Ensure Nginx is started and enabled
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+
+- name: Remove default Nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload Nginx
+
+- name: Create Nginx conf.d directory if not exists
+  file:
+    path: /etc/nginx/conf.d
+    state: directory
+    mode: '0755'
+
+- name: Configure Nginx for Jenkins (HTTP only - before SSL)
+  template:
+    src: jenkins-http.conf.j2
+    dest: /etc/nginx/conf.d/jenkins.conf
+    mode: '0644'
+  notify: Reload Nginx
+  when: "'jenkins' in group_names"
+
+- name: Configure Nginx for SonarQube (HTTP only - before SSL)
+  template:
+    src: sonarqube-http.conf.j2
+    dest: /etc/nginx/conf.d/sonarqube.conf
+    mode: '0644'
+  notify: Reload Nginx
+  when: "'sonarqube' in group_names"
+
+- name: Configure Nginx for Nexus (HTTP only - before SSL)
+  template:
+    src: nexus-http.conf.j2
+    dest: /etc/nginx/conf.d/nexus.conf
+    mode: '0644'
+  notify: Reload Nginx
+  when: "'nexus' in group_names"
+
+- name: Test Nginx configuration
+  command: nginx -t
+  register: nginx_test
+  changed_when: false
+
+- name: Display Nginx configuration status
+  debug:
+    msg: "✓ Nginx configured successfully"

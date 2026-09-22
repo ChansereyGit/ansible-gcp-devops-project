@@ -1,0 +1,162 @@
+---
+# ============================================================================
+# GCP Project Configuration
+# ============================================================================
+google_project_id: "my-project-devops-504714"
+google_zone: "asia-southeast1-c"
+google_region: "asia-southeast1"
+
+# Path to GCP Application Default Credentials
+# Run: gcloud auth application-default login
+adc_path: "/home/samnangchanserey/.config/gcloud/application_default_credentials.json"
+
+# ============================================================================
+# SSH Configuration
+# ============================================================================
+ssh_username: "samnangchanserey"
+ssh_public_key_path: "/home/samnangchanserey/.ssh/id_ed25519.pub"
+ssh_private_key_path: "/home/samnangchanserey/.ssh/id_ed25519"
+
+# ============================================================================
+# Domain Configuration
+# ============================================================================
+base_domain: "konpapa.online"
+
+# Subdomains for each service
+jenkins_domain: "jenkins.konpapa.online"
+sonarqube_domain: "sonarqube.konpapa.online"
+nexus_domain: "nexus.konpapa.online"
+
+# Email for Let's Encrypt SSL certificates
+letsencrypt_email: "admin@konpapa.online"
+
+# ============================================================================
+# Machine Specifications
+# ============================================================================
+machine_specs:
+  # Controller: 4GB RAM, 2 vCPUs
+  medium:
+    machine_type: "e2-medium"
+    disk_size: 30
+    disk_type: "pd-standard"
+  
+  # Application servers: 8GB RAM, 2 vCPUs
+  large:
+    machine_type: "e2-standard-2"
+    disk_size: 50
+    disk_type: "pd-standard"
+
+# ============================================================================
+# Ubuntu Image
+# ============================================================================
+ubuntu_image: "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
+
+# ============================================================================
+# VM Definitions
+# ============================================================================
+vms:
+  - name: "ansible-controller"
+    machine_type: "{{ machine_specs.medium.machine_type }}"
+    image: "{{ ubuntu_image }}"
+    zone: "{{ google_zone }}"
+    disk_size: "{{ machine_specs.medium.disk_size }}"
+    disk_type: "{{ machine_specs.medium.disk_type }}"
+    tags:
+      - ssh-allowed
+    group: "controller"
+    
+  - name: "jenkins-vm"
+    machine_type: "{{ machine_specs.large.machine_type }}"
+    image: "{{ ubuntu_image }}"
+    zone: "{{ google_zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"
+    tags:
+      - http-server
+      - https-server
+      - ssh-allowed
+    group: "jenkins"
+    
+  - name: "sonarqube-vm"
+    machine_type: "{{ machine_specs.medium.machine_type }}"
+    image: "{{ ubuntu_image }}"
+    zone: "{{ google_zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"
+    tags:
+      - http-server
+      - https-server
+      - ssh-allowed
+    group: "sonarqube"
+    
+  - name: "nexus-vm"
+    machine_type: "{{ machine_specs.medium.machine_type }}"
+    image: "{{ ubuntu_image }}"
+    zone: "{{ google_zone }}"
+    disk_size: "{{ machine_specs.large.disk_size }}"
+    disk_type: "{{ machine_specs.large.disk_type }}"
+    tags:
+      - http-server
+      - https-server
+      - ssh-allowed
+    group: "nexus"
+
+# ============================================================================
+# Application Ports
+# ============================================================================
+jenkins_port: 8080
+sonarqube_port: 9000
+nexus_port: 8081
+nexus_docker_port: 5000
+
+# ============================================================================
+# Docker Compose Environment Variables
+# ============================================================================
+
+# SonarQube Database Configuration
+sonarqube_db_name: "sonarqube"
+sonarqube_db_user: "sonar"
+sonarqube_db_password: "sonar_secure_password_change_me"
+
+# Nexus Admin Password (first-time setup)
+nexus_admin_password: "admin123"
+
+# ============================================================================
+# Packages to Install
+# ============================================================================
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - tree
+  - unzip
+  - software-properties-common
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - python3-pip
+  - jq
+
+# Additional tools for controller
+controller_packages:
+  - fish
+  - tmux
+  - gh  # GitHub CLI
+
+# ============================================================================
+# Optional: Oh My Zsh Configuration
+# ============================================================================
+install_ohmyzsh: true
+ohmyzsh_theme: "robbyrussell"
+
+# ============================================================================
+# Firewall Rules (GCP Tags)
+# ============================================================================
+# These tags should match GCP firewall rules:
+# - ssh-allowed: Port 22
+# - http-server: Port 80
+# - https-server: Port 443
+# ============================================================================

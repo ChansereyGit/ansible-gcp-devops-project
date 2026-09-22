@@ -1,0 +1,165 @@
+---
+# ============================================================================
+# Playbook: Create GCP Infrastructure
+# Purpose: Create all VMs (ansible-controller, jenkins, sonarqube, nexus)
+# ============================================================================
+- name: Create GCP Virtual Machines
+  hosts: localhost
+  gather_facts: true
+  vars_files:
+    - ../vars/config.yaml
+  
+  tasks:
+    - name: Display GCP Project Information
+      debug:
+        msg: |
+          Creating VMs in GCP Project: {{ google_project_id }}
+          Zone: {{ google_zone }}
+          VMs to create: {{ vms | map(attribute='name') | list | join(', ') }}
+
+    - name: Check if gcloud is authenticated
+      command: gcloud auth list --filter=status:ACTIVE --format="value(account)"
+      register: gcloud_auth_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display authentication status
+      debug:
+        msg: "Active GCP account: {{ gcloud_auth_check.stdout }}"
+      when: gcloud_auth_check.stdout != ""
+
+    - name: Warn if not authenticated
+      fail:
+        msg: |
+          No active GCP authentication found!
+          Please run: gcloud auth application-default login
+      when: gcloud_auth_check.stdout == ""
+
+    - name: Install Python GCP libraries (if not present)
+      pip:
+        name:
+          - google-auth
+          - requests
+        state: present
+        executable: pip3
+      become: true
+
+    - name: Read SSH public key
+      slurp:
+        src: "{{ ssh_public_key_path }}"
+      register: ssh_pub_key
+
+    - name: Decode SSH public key
+      set_fact:
+        ssh_public_key_content: "{{ ssh_pub_key['content'] | b64decode | trim }}"
+
+    - name: Create GCP compute instances
+      google.cloud.gcp_compute_instance:
+        name: "{{ item.name }}"
+        machine_type: "{{ item.machine_type }}"
+        zone: "{{ item.zone }}"
+        project: "{{ google_project_id }}"
+        auth_kind: application
+        state: present
+        metadata:
+          ssh-keys: "{{ ssh_username }}:{{ ssh_public_key_content }}"
+          startup-script: |
+            #!/bin/bash
+            # Update system
+            sudo apt-get update
+            sudo apt-get upgrade -y
+            
+            # Set timezone
+            sudo timedatectl set-timezone Asia/Bangkok
+            
+            # Install basic utilities
+            sudo apt-get install -y curl wget git vim htop tree
+            
+            # Disable swap (required for SonarQube)
+            sudo swapoff -a
+            sudo sed -i '/ swap / s/^/#/' /etc/fstab
+            
+            # Increase vm.max_map_count for SonarQube/Elasticsearch
+            echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+            sudo sysctl -w vm.max_map_count=262144
+            
+            # Create marker file
+            echo "Startup script completed at $(date)" > /tmp/startup-complete.txt
+        disks:
+          - auto_delete: true
+            boot: true
+            initialize_params:
+              source_image: "{{ item.image }}"
+              disk_size_gb: "{{ item.disk_size }}"
+              disk_type: "{{ item.disk_type }}"
+        network_interfaces:
+          - network:
+              selfLink: "projects/{{ google_project_id }}/global/networks/default"
+            access_configs:
+              - name: External NAT
+                type: ONE_TO_ONE_NAT
+        tags:
+          items: "{{ item.tags }}"
+      register: gcp_instances
+      environment:
+        GOOGLE_APPLICATION_CREDENTIALS: "{{ adc_path }}"
+        GOOGLE_EXTERNAL_ACCOUNT_ALLOW_EXECUTABLES: "1"
+      loop: "{{ vms }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Save GCP instances information to file
+      copy:
+        content: "{{ gcp_instances | to_nice_json }}"
+        dest: "./gcp_instances.json"
+      when: gcp_instances is defined
+
+    - name: Extract instance information
+      set_fact:
+        created_instances: "{{ gcp_instances.results | map(attribute='networkInterfaces') | flatten | map(attribute='accessConfigs') | flatten | map(attribute='natIP') }}"
+
+    - name: Display created instances
+      debug:
+        msg: |
+          ✓ VMs Created Successfully!
+          
+          {% for result in gcp_instances.results %}
+          {{ result.name }}:
+            - External IP: {{ result.networkInterfaces[0].accessConfigs[0].natIP }}
+            - Machine Type: {{ result.machineType.split('/')[-1] }}
+            - Zone: {{ result.zone.split('/')[-1] }}
+          {% endfor %}
+
+    - name: Generate dynamic inventory
+      template:
+        src: ../templates/inventory-template.j2
+        dest: ../inventory/hosts.ini
+      vars:
+        instances: "{{ gcp_instances.results }}"
+
+    - name: Wait for VMs to be SSH ready (30 seconds)
+      wait_for:
+        host: "{{ item.networkInterfaces[0].accessConfigs[0].natIP }}"
+        port: 22
+        delay: 5
+        timeout: 300
+        state: started
+      loop: "{{ gcp_instances.results }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Display next steps
+      debug:
+        msg: |
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ✓ Infrastructure Created Successfully!
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          Inventory file updated: ansible/inventory/hosts.ini
+          
+          Next steps:
+          1. Test connectivity: just ping-all
+          2. Configure VMs: just configure-all
+          3. Setup DNS records (see README.md)
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

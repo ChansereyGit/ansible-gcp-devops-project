@@ -1,0 +1,27 @@
+---
+# ============================================================================
+# Role: common - Default Variables
+# ============================================================================
+
+# Default packages (can be overridden in vars/config.yaml)
+common_packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - htop
+  - tree
+  - unzip
+  - software-properties-common
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+controller_packages:
+  - fish
+  - tmux
+  - gh
+
+install_ohmyzsh: false
+ohmyzsh_theme: "robbyrussell"

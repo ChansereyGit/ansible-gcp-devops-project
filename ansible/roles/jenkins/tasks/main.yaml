@@ -1,0 +1,97 @@
+---
+# ============================================================================
+# Role: jenkins
+# Purpose: Install and configure Jenkins using Docker
+# ============================================================================
+
+- name: Create Jenkins directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "/home/{{ ansible_user }}/jenkins"
+    - "/home/{{ ansible_user }}/jenkins/data"
+
+- name: Copy Jenkins docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "/home/{{ ansible_user }}/jenkins/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Copy Jenkins environment file
+  template:
+    src: jenkins.env.j2
+    dest: "/home/{{ ansible_user }}/jenkins/.env"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+
+- name: Start Jenkins container
+  docker_compose:
+    project_src: "/home/{{ ansible_user }}/jenkins"
+    state: present
+    pull: yes
+  become: yes
+  become_user: "{{ ansible_user }}"
+
+- name: Wait for Jenkins to start
+  wait_for:
+    host: localhost
+    port: "{{ jenkins_port }}"
+    delay: 10
+    timeout: 300
+    state: started
+
+- name: Wait for Jenkins to be fully ready (additional 30 seconds)
+  pause:
+    seconds: 30
+
+- name: Check if initial admin password exists
+  stat:
+    path: "/home/{{ ansible_user }}/jenkins/data/secrets/initialAdminPassword"
+  register: jenkins_initial_password
+
+- name: Read Jenkins initial admin password
+  slurp:
+    src: "/home/{{ ansible_user }}/jenkins/data/secrets/initialAdminPassword"
+  register: jenkins_password_content
+  when: jenkins_initial_password.stat.exists
+  become: yes
+  become_user: "{{ ansible_user }}"
+
+- name: Display Jenkins initial password
+  debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "✓ Jenkins installed successfully!"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "Access Jenkins at: http://{{ ansible_default_ipv4.address }}:{{ jenkins_port }}"
+      - "Initial Admin Password: {{ jenkins_password_content['content'] | b64decode | trim }}"
+      - ""
+      - "Save this password! You'll need it for the initial setup."
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  when: jenkins_initial_password.stat.exists
+
+- name: Create Jenkins systemd service for auto-start
+  template:
+    src: jenkins.service.j2
+    dest: /etc/systemd/system/jenkins-docker.service
+    mode: '0644'
+
+- name: Enable Jenkins systemd service
+  systemd:
+    name: jenkins-docker
+    enabled: yes
+    daemon_reload: yes
+
+- name: Display Jenkins info
+  debug:
+    msg:
+      - "Jenkins is running on port {{ jenkins_port }}"
+      - "Domain will be configured: {{ jenkins_domain }}"
+      - "Data directory: /home/{{ ansible_user }}/jenkins/data"

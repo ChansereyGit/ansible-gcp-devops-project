@@ -1,0 +1,120 @@
+---
+# ============================================================================
+# Playbook: Destroy GCP Infrastructure
+# Purpose: Delete all VMs and clean up
+# WARNING: This will permanently delete all VMs and their data!
+# ============================================================================
+- name: Destroy GCP Virtual Machines
+  hosts: localhost
+  gather_facts: true
+  vars_files:
+    - ../vars/config.yaml
+  
+  vars_prompt:
+    - name: confirm_destroy
+      prompt: |
+        ⚠️  WARNING: You are about to DESTROY all infrastructure!
+        This will permanently delete:
+        {% for vm in vms %}
+        - {{ vm.name }}
+        {% endfor %}
+        
+        Type 'yes' to confirm destruction
+      private: false
+
+  tasks:
+    - name: Abort if not confirmed
+      fail:
+        msg: "Destruction cancelled by user"
+      when: confirm_destroy != "yes"
+
+    - name: Display destruction plan
+      debug:
+        msg: |
+          Destroying VMs in GCP Project: {{ google_project_id }}
+          Zone: {{ google_zone }}
+          VMs to destroy: {{ vms | map(attribute='name') | list | join(', ') }}
+
+    - name: Check if gcloud is authenticated
+      command: gcloud auth list --filter=status:ACTIVE --format="value(account)"
+      register: gcloud_auth_check
+      changed_when: false
+      failed_when: false
+
+    - name: Warn if not authenticated
+      fail:
+        msg: |
+          No active GCP authentication found!
+          Please run: gcloud auth application-default login
+      when: gcloud_auth_check.stdout == ""
+
+    - name: Install Python GCP libraries (if not present)
+      pip:
+        name:
+          - google-auth
+          - requests
+        state: present
+        executable: pip3
+      become: true
+
+    - name: Delete GCP compute instances
+      google.cloud.gcp_compute_instance:
+        name: "{{ item.name }}"
+        machine_type: "{{ item.machine_type }}"
+        zone: "{{ item.zone }}"
+        project: "{{ google_project_id }}"
+        auth_kind: application
+        state: absent
+        disks:
+          - auto_delete: true
+            boot: true
+            initialize_params:
+              source_image: "{{ item.image }}"
+              disk_size_gb: "{{ item.disk_size }}"
+              disk_type: "{{ item.disk_type }}"
+        network_interfaces:
+          - network:
+              selfLink: "projects/{{ google_project_id }}/global/networks/default"
+            access_configs:
+              - name: External NAT
+                type: ONE_TO_ONE_NAT
+        tags:
+          items: "{{ item.tags }}"
+      register: gcp_destroy_result
+      environment:
+        GOOGLE_APPLICATION_CREDENTIALS: "{{ adc_path }}"
+        GOOGLE_EXTERNAL_ACCOUNT_ALLOW_EXECUTABLES: "1"
+      loop: "{{ vms }}"
+      loop_control:
+        label: "{{ item.name }}"
+      ignore_errors: true
+
+    - name: Remove generated inventory file
+      file:
+        path: ../inventory/hosts.ini
+        state: absent
+
+    - name: Remove GCP instances JSON file
+      file:
+        path: ./gcp_instances.json
+        state: absent
+
+    - name: Display destruction results
+      debug:
+        msg: |
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ✓ Infrastructure Destroyed Successfully!
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          Deleted VMs:
+          {% for vm in vms %}
+          - {{ vm.name }}
+          {% endfor %}
+          
+          Cleaned up files:
+          - ansible/inventory/hosts.ini
+          - ansible/playbooks/gcp_instances.json
+          
+          Note: DNS records still need to be manually removed from your provider
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -1,0 +1,79 @@
+---
+# ============================================================================
+# Playbook: Configure All VMs
+# Purpose: Install Docker, applications, and configure services
+# ============================================================================
+- name: Configure All Virtual Machines
+  hosts: all:!localhost
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../vars/config.yaml
+
+  roles:
+    - common
+    - docker
+
+- name: Configure Jenkins Server
+  hosts: jenkins
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../vars/config.yaml
+
+  roles:
+    - jenkins
+    - nginx
+
+- name: Configure SonarQube Server
+  hosts: sonarqube
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../vars/config.yaml
+
+  roles:
+    - sonarqube
+    - nginx
+
+- name: Configure Nexus Server
+  hosts: nexus
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../vars/config.yaml
+
+  roles:
+    - nexus
+    - nginx
+
+- name: Setup SSL Certificates
+  hosts: jenkins:sonarqube:nexus
+  gather_facts: true
+  become: true
+  vars_files:
+    - ../vars/config.yaml
+
+  roles:
+    - certbot
+
+  post_tasks:
+    - name: Display service URLs
+      debug:
+        msg: |
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          ✓ Configuration Complete!
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          
+          Jenkins:    https://{{ jenkins_domain }}
+          SonarQube:  https://{{ sonarqube_domain }}
+          Nexus:      https://{{ nexus_domain }}
+          
+          Default Credentials:
+          - Jenkins: Check /var/lib/docker/volumes/jenkins_home/_data/secrets/initialAdminPassword
+          - SonarQube: admin / admin (change on first login)
+          - Nexus: admin / Check /var/lib/docker/volumes/nexus-data/_data/admin.password
+          
+          ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      run_once: true
+      delegate_to: localhost

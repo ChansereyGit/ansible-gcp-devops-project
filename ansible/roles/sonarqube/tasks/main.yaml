@@ -1,0 +1,138 @@
+---
+# ============================================================================
+# Role: sonarqube
+# Purpose: Install and configure SonarQube with PostgreSQL using Docker
+# ============================================================================
+
+- name: Create SonarQube directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  loop:
+    - "/home/{{ ansible_user }}/sonarqube"
+    - "/home/{{ ansible_user }}/sonarqube/data"
+    - "/home/{{ ansible_user }}/sonarqube/extensions"
+    - "/home/{{ ansible_user }}/sonarqube/logs"
+    - "/home/{{ ansible_user }}/sonarqube/postgres"
+
+- name: Ensure correct permissions for SonarQube directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+    recurse: yes
+  loop:
+    - "/home/{{ ansible_user }}/sonarqube/data"
+    - "/home/{{ ansible_user }}/sonarqube/extensions"
+    - "/home/{{ ansible_user }}/sonarqube/logs"
+
+- name: Copy SonarQube docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "/home/{{ ansible_user }}/sonarqube/docker-compose.yml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Copy SonarQube environment file
+  template:
+    src: sonarqube.env.j2
+    dest: "/home/{{ ansible_user }}/sonarqube/.env"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+
+- name: Copy SonarQube setup documentation
+  copy:
+    src: sonarqube-setup.md
+    dest: "/home/{{ ansible_user }}/sonarqube/SETUP.md"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+
+- name: Verify vm.max_map_count is set correctly
+  sysctl:
+    name: vm.max_map_count
+    value: '262144'
+    state: present
+    reload: yes
+
+- name: Start SonarQube containers
+  docker_compose:
+    project_src: "/home/{{ ansible_user }}/sonarqube"
+    state: present
+    pull: yes
+  become: yes
+  become_user: "{{ ansible_user }}"
+
+- name: Wait for SonarQube to start
+  wait_for:
+    host: localhost
+    port: "{{ sonarqube_port }}"
+    delay: 15
+    timeout: 300
+    state: started
+
+- name: Wait for SonarQube to be fully ready (additional 45 seconds)
+  pause:
+    seconds: 45
+
+- name: Check SonarQube health
+  uri:
+    url: "http://localhost:{{ sonarqube_port }}/api/system/status"
+    method: GET
+    status_code: 200
+  register: sonarqube_health
+  until: sonarqube_health.status == 200
+  retries: 10
+  delay: 10
+  ignore_errors: yes
+
+- name: Display SonarQube status
+  debug:
+    msg:
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "✓ SonarQube installed successfully!"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      - "Access SonarQube at: http://{{ ansible_default_ipv4.address }}:{{ sonarqube_port }}"
+      - ""
+      - "Default credentials:"
+      - "  Username: admin"
+      - "  Password: admin (you'll be prompted to change it)"
+      - ""
+      - "Database: PostgreSQL 16"
+      - "  Database: {{ sonarqube_db_name }}"
+      - "  User: {{ sonarqube_db_user }}"
+      - ""
+      - "Data directories:"
+      - "  - /home/{{ ansible_user }}/sonarqube/data"
+      - "  - /home/{{ ansible_user }}/sonarqube/extensions"
+      - "  - /home/{{ ansible_user }}/sonarqube/logs"
+      - "  - /home/{{ ansible_user }}/sonarqube/postgres"
+      - ""
+      - "Setup guide: /home/{{ ansible_user }}/sonarqube/SETUP.md"
+      - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+- name: Create SonarQube systemd service for auto-start
+  template:
+    src: sonarqube.service.j2
+    dest: /etc/systemd/system/sonarqube-docker.service
+    mode: '0644'
+
+- name: Enable SonarQube systemd service
+  systemd:
+    name: sonarqube-docker
+    enabled: yes
+    daemon_reload: yes
+
+- name: Display SonarQube info
+  debug:
+    msg:
+      - "SonarQube is running on port {{ sonarqube_port }}"
+      - "Domain will be configured: {{ sonarqube_domain }}"
+      - "PostgreSQL database: {{ sonarqube_db_name }}"

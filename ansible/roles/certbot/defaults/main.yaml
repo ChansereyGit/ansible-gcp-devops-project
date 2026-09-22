@@ -1,0 +1,10 @@
+---
+# ============================================================================
+# Role: certbot - Default Variables
+# ============================================================================
+
+certbot_admin_email: "{{ letsencrypt_email }}"
+certbot_create_if_missing: true
+certbot_auto_renew: true
+certbot_auto_renew_hour: "3"
+certbot_auto_renew_minute: "30"
