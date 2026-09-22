@@ -32,7 +32,7 @@ create-infrastructure:
     @echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     @echo "Creating GCP Infrastructure..."
     @echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    cd {{ansible_dir}} && ansible-playbook playbooks/01-create-infrastructure.yaml
+    cd {{ansible_dir}} && ansible-playbook -i inventory/bootstrap.ini playbooks/01-create-infrastructure.yaml
 
 # Destroy all GCP infrastructure (with confirmation)
 destroy-infrastructure:
