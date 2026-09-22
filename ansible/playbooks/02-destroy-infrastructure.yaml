@@ -49,15 +49,6 @@
           Please run: gcloud auth application-default login
       when: gcloud_auth_check.stdout == ""
 
-    - name: Install Python GCP libraries (if not present)
-      pip:
-        name:
-          - google-auth
-          - requests
-        state: present
-        executable: pip3
-        extra_args: --user
-
     - name: Delete GCP compute instances
       google.cloud.gcp_compute_instance:
         name: "{{ item.name }}"

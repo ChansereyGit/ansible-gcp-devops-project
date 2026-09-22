@@ -36,15 +36,6 @@
           Please run: gcloud auth application-default login
       when: gcloud_auth_check.stdout == ""
 
-    - name: Install Python GCP libraries (if not present)
-      apt:
-        name:
-          - python3-google-auth
-          - python3-requests
-        state: present
-      become: true
-      ignore_errors: yes
-
     - name: Read SSH public key
       slurp:
         src: "{{ ssh_public_key_path }}"
