@@ -63,10 +63,10 @@
     reload: yes
 
 - name: Start SonarQube containers
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: "/home/{{ ansible_user }}/sonarqube"
     state: present
-    pull: yes
+    pull: always
   become: yes
   become_user: "{{ ansible_user }}"
 

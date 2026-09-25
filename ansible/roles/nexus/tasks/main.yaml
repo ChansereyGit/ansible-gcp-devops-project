@@ -49,10 +49,10 @@
     mode: '0644'
 
 - name: Start Nexus container
-  docker_compose:
+  community.docker.docker_compose_v2:
     project_src: "/home/{{ ansible_user }}/nexus"
     state: present
-    pull: yes
+    pull: always
   become: yes
   become_user: "{{ ansible_user }}"
 
