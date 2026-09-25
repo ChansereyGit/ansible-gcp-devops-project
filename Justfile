@@ -81,11 +81,6 @@ ping-nexus:
     @echo "Testing connectivity to Nexus..."
     cd {{ansible_dir}} && ansible -m ping nexus
 
-# Test connectivity to Controller VM
-ping-controller:
-    @echo "Testing connectivity to Controller..."
-    cd {{ansible_dir}} && ansible -m ping controller
-
 # ============================================================================
 # Service Management
 # ============================================================================
@@ -153,12 +148,12 @@ show-inventory-graph:
 # Display Jenkins initial password
 get-jenkins-password:
     @echo "Fetching Jenkins initial password..."
-    cd {{ansible_dir}} && ansible jenkins -m shell -a "cat ~/jenkins/data/secrets/initialAdminPassword" -b
+    cd {{ansible_dir}} && ansible jenkins -m shell -a "sudo cat /home/samnangchanserey/jenkins/data/secrets/initialAdminPassword"
 
 # Display Nexus initial password
 get-nexus-password:
     @echo "Fetching Nexus initial password..."
-    cd {{ansible_dir}} && ansible nexus -m shell -a "cat ~/nexus/data/admin.password" -b
+    cd {{ansible_dir}} && ansible nexus -m shell -a "sudo cat /home/samnangchanserey/nexus/data/admin.password"
 
 # Show all service URLs
 show-urls:

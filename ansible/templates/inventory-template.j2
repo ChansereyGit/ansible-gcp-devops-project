@@ -14,10 +14,10 @@ ansible_ssh_private_key_file={{ ssh_private_key_path }}
 ansible_ssh_extra_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
 # ============================================================================
-# Localhost (Ansible Controller)
+# Localhost (Ansible Controller - jenkins-server)
 # ============================================================================
 [localhost]
-controller ansible_connection=local
+localhost ansible_connection=local
 
 # ============================================================================
 # Jenkins Servers
@@ -50,28 +50,9 @@ controller ansible_connection=local
 {% endfor %}
 
 # ============================================================================
-# Ansible Controller (optional - if managing itself)
-# ============================================================================
-[controller]
-{% for instance in instances %}
-{% if 'controller' in instance.name %}
-{{ instance.name }} ansible_host={{ instance.networkInterfaces[0].accessConfigs[0].natIP }}
-{% endif %}
-{% endfor %}
-
-# ============================================================================
-# Group: All Application Servers
-# ============================================================================
-[app_servers:children]
-jenkins
-sonarqube
-nexus
-
-# ============================================================================
 # Group: All GCP VMs (excluding localhost)
 # ============================================================================
 [gcp_vms:children]
 jenkins
 sonarqube
 nexus
-controller

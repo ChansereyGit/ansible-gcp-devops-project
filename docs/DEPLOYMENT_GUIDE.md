@@ -128,6 +128,35 @@ nexus-vm: 34.101.123.47
 
 **📖 Detailed Guide:** See [NAMECHEAP_DNS_SETUP.md](./NAMECHEAP_DNS_SETUP.md) for step-by-step instructions with screenshots.
 
+**⚠️ IMPORTANT:** SSL setup requires DNS to be working first! This is why configuration is split into two phases:
+
+### Why SSL is Separate from configure-all?
+
+**Reason 1: DNS Propagation Required**
+- Let's Encrypt validates domain ownership by checking DNS
+- DNS propagation takes 10-30 minutes after adding records
+- If you run SSL setup before DNS is ready, it will fail
+- Separating the steps ensures DNS is propagated first
+
+**Reason 2: Let's Encrypt Rate Limits**
+- Let's Encrypt has strict rate limits (5 failed attempts per hour)
+- If SSL setup fails, you need to wait 1 hour before retry
+- Splitting allows you to verify DNS is working before attempting SSL
+
+**Reason 3: Flexibility**
+- You might want to test services on HTTP first
+- You might want to use Cloudflare SSL instead of Let's Encrypt
+- You might want to skip HTTPS for development/testing
+
+**Workflow:**
+```
+1. Configure services → Test on HTTP → Verify working
+2. Configure DNS → Wait for propagation → Verify DNS
+3. Setup SSL → Test on HTTPS → Production ready
+```
+
+**Note:** In the current playbook, `03-configure-all.yaml` already includes the `certbot` role, so SSL setup happens automatically if DNS is ready. The separate `just setup-ssl` command is provided as a convenience if you need to retry SSL setup later.
+
 ### 3.1 Get Your VM IPs
 
 ```bash
