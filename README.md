@@ -214,19 +214,23 @@ This will:
 
 ### 4. Configure DNS
 
-After VMs are created, configure DNS A records:
+**📖 See detailed guide:** [docs/NAMECHEAP_DNS_SETUP.md](docs/NAMECHEAP_DNS_SETUP.md)
 
-| Subdomain | Type | Value |
-|-----------|------|-------|
-| jenkins.konpapa.online | A | `<jenkins-vm-ip>` |
-| sonarqube.konpapa.online | A | `<sonarqube-vm-ip>` |
-| nexus.konpapa.online | A | `<nexus-vm-ip>` |
+After VMs are created, configure DNS A records on Namecheap:
 
-**Get the IP addresses:**
-```bash
-just show-inventory
-# Or check GCP Console
-```
+1. Get your VM IPs: `cat ansible/inventory/hosts.ini`
+2. Login to Namecheap → Domain List → konpapa.online → MANAGE
+3. Click **Advanced DNS** tab
+4. Add 3 A Records:
+
+| Type | Host | Value | TTL |
+|------|------|-------|-----|
+| A | jenkins | `<jenkins-vm-ip>` | Automatic |
+| A | sonarqube | `<sonarqube-vm-ip>` | Automatic |
+| A | nexus | `<nexus-vm-ip>` | Automatic |
+
+5. Save and wait 10-30 minutes for DNS propagation
+6. Test: `dig jenkins.konpapa.online +short`
 
 ### 5. Setup SSL Certificates
 

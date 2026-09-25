@@ -126,27 +126,61 @@ nexus-vm: 34.101.123.47
 
 ## Phase 3: Configure DNS
 
-### 3.1 Add DNS A Records
+**📖 Detailed Guide:** See [NAMECHEAP_DNS_SETUP.md](./NAMECHEAP_DNS_SETUP.md) for step-by-step instructions with screenshots.
 
-Login to your DNS provider (Namecheap) and add:
+### 3.1 Get Your VM IPs
+
+```bash
+# Display all VMs and their IPs
+cd ~/ansible-gcp-devops-project/ansible
+cat inventory/hosts.ini
+```
+
+Note down the external IPs for each VM.
+
+### 3.2 Add DNS A Records on Namecheap
+
+1. Login to https://www.namecheap.com
+2. Go to **Domain List** → Find **konpapa.online** → Click **MANAGE**
+3. Click **Advanced DNS** tab
+4. Add 3 A Records:
 
 | Type | Host | Value | TTL |
 |------|------|-------|-----|
-| A | jenkins | `<jenkins-vm-ip>` | 300 |
-| A | sonarqube | `<sonarqube-vm-ip>` | 300 |
-| A | nexus | `<nexus-vm-ip>` | 300 |
+| A | jenkins | `<jenkins-vm-ip>` | Automatic |
+| A | sonarqube | `<sonarqube-vm-ip>` | Automatic |
+| A | nexus | `<nexus-vm-ip>` | Automatic |
 
-### 3.2 Verify DNS Propagation
+5. Click **SAVE ALL CHANGES**
+
+**Example:**
+```
+A Record | jenkins    | 34.142.147.236 | Automatic
+A Record | sonarqube  | 34.21.213.214  | Automatic
+A Record | nexus      | 34.21.132.214  | Automatic
+```
+
+### 3.3 Wait for DNS Propagation
+
+DNS changes take **10-30 minutes** to propagate. Wait before proceeding.
+
+### 3.4 Verify DNS Propagation
 
 ```bash
-# Wait 5-15 minutes for DNS to propagate
-# Then verify:
+# Test DNS resolution
+dig jenkins.konpapa.online +short
+dig sonarqube.konpapa.online +short
+dig nexus.konpapa.online +short
+
+# Or use nslookup
 nslookup jenkins.konpapa.online
 nslookup sonarqube.konpapa.online
 nslookup nexus.konpapa.online
-
-# Should return the correct IP addresses
 ```
+
+**Expected:** Each command should return the correct IP address.
+
+**If DNS not working after 30 min:** Check [NAMECHEAP_DNS_SETUP.md](./NAMECHEAP_DNS_SETUP.md) troubleshooting section.
 
 ---
 
