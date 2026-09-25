@@ -65,7 +65,6 @@
   register: jenkins_password_content
   when: jenkins_initial_password.stat.exists
   become: yes
-  become_user: "{{ ansible_user }}"
 
 - name: Display Jenkins initial password
   debug:
