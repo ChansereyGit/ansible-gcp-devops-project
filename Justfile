@@ -88,7 +88,7 @@ ping-nexus:
 # Check status of all Docker containers on all VMs
 check-services:
     @echo "Checking Docker services on all VMs..."
-    cd {{ansible_dir}} && ansible app_servers -m shell -a "docker ps --format 'table {{{{.Names}}}}\t{{{{.Status}}}}\t{{{{.Ports}}}}'" -b
+    cd {{ansible_dir}} && ansible app_servers -m shell -a "docker ps" -b
 
 # Restart Jenkins service
 restart-jenkins:
