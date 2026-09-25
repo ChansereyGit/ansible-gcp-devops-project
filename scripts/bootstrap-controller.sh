@@ -6,6 +6,20 @@
 # This script sets up the Ansible controller VM with all required tools
 # Run this script on the ansible-controller VM after creation
 #
+# IMPORTANT: This script requires sudo access
+#
+# Two options to avoid password prompts:
+#
+# Option 1: Run setup-passwordless-sudo.sh first (RECOMMENDED)
+#   wget https://raw.githubusercontent.com/YOUR_REPO/main/scripts/setup-passwordless-sudo.sh
+#   chmod +x setup-passwordless-sudo.sh
+#   ./setup-passwordless-sudo.sh  (enter password once)
+#   ./bootstrap-controller.sh     (no password needed!)
+#
+# Option 2: This script will ask for password once at the start
+#   ./bootstrap-controller.sh
+#   (enter password once, it will be cached)
+#
 # Usage:
 #   wget https://raw.githubusercontent.com/YOUR_REPO/main/scripts/bootstrap-controller.sh
 #   chmod +x bootstrap-controller.sh
@@ -43,6 +57,14 @@ if [ "$EUID" -eq 0 ]; then
     log_error "Please do not run this script as root"
     exit 1
 fi
+
+# Request sudo password upfront and cache it
+log_info "This script requires sudo access for package installation"
+log_info "Please enter your password once (it will be cached for the script duration)"
+sudo -v
+
+# Keep sudo alive in background
+while true; do sudo -n true; sleep 50; kill -0 "$$" || exit; done 2>/dev/null &
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Ansible Controller Bootstrap Script"
