@@ -48,6 +48,9 @@
     group: "{{ ansible_user }}"
     mode: '0644'
 
+- name: Reset SSH connection to apply docker group membership
+  meta: reset_connection
+
 - name: Start Nexus container
   community.docker.docker_compose_v2:
     project_src: "/home/{{ ansible_user }}/nexus"

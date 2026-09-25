@@ -62,6 +62,9 @@
     state: present
     reload: yes
 
+- name: Reset SSH connection to apply docker group membership
+  meta: reset_connection
+
 - name: Start SonarQube containers
   community.docker.docker_compose_v2:
     project_src: "/home/{{ ansible_user }}/sonarqube"
