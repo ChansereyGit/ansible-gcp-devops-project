@@ -44,6 +44,17 @@
   register: nexus_cert
   when: "'nexus' in group_names"
 
+- name: Get external IP address
+  uri:
+    url: https://api.ipify.org?format=json
+    return_content: yes
+  register: external_ip_response
+  changed_when: false
+
+- name: Set external IP fact
+  set_fact:
+    vm_external_ip: "{{ external_ip_response.json.ip }}"
+
 - name: Check DNS resolution
   shell: dig +short {{ jenkins_domain if 'jenkins' in group_names else sonarqube_domain if 'sonarqube' in group_names else nexus_domain }}
   register: dns_check
@@ -57,8 +68,9 @@
       - "DNS Check:"
       - "{% if 'jenkins' in group_names %}Domain: {{ jenkins_domain }}{% endif %}{% if 'sonarqube' in group_names %}Domain: {{ sonarqube_domain }}{% endif %}{% if 'nexus' in group_names %}Domain: {{ nexus_domain }}{% endif %}"
       - "Resolves to: {{ dns_check.stdout | default('Not resolved') }}"
-      - "VM IP: {{ ansible_default_ipv4.address }}"
-      - "Match: {{ 'YES ✓' if ansible_default_ipv4.address in dns_check.stdout else 'NO ✗ - DNS may not be configured correctly' }}"
+      - "VM External IP: {{ vm_external_ip }}"
+      - "VM Internal IP: {{ ansible_default_ipv4.address }}"
+      - "Match: {{ 'YES ✓' if vm_external_ip in dns_check.stdout else 'NO ✗ - DNS may not be configured correctly' }}"
       - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 - name: Wait for DNS propagation if needed
@@ -67,9 +79,9 @@
       
       ⚠️  IMPORTANT: Ensure DNS is configured correctly before proceeding!
       
-      {% if 'jenkins' in group_names %}Jenkins:    {{ jenkins_domain }} → {{ ansible_default_ipv4.address }}{% endif %}
-      {% if 'sonarqube' in group_names %}SonarQube: {{ sonarqube_domain }} → {{ ansible_default_ipv4.address }}{% endif %}
-      {% if 'nexus' in group_names %}Nexus:     {{ nexus_domain }} → {{ ansible_default_ipv4.address }}{% endif %}
+      {% if 'jenkins' in group_names %}Jenkins:    {{ jenkins_domain }} → {{ vm_external_ip }}{% endif %}
+      {% if 'sonarqube' in group_names %}SonarQube: {{ sonarqube_domain }} → {{ vm_external_ip }}{% endif %}
+      {% if 'nexus' in group_names %}Nexus:     {{ nexus_domain }} → {{ vm_external_ip }}{% endif %}
       
       If DNS is not configured yet:
       1. Go to your DNS provider (Namecheap)
@@ -78,7 +90,7 @@
       4. Wait 2-3 minutes for propagation
       
       Press Enter to continue when DNS is ready (Ctrl+C to abort)...
-  when: ansible_default_ipv4.address not in dns_check.stdout
+  when: vm_external_ip not in dns_check.stdout
 
 - name: Obtain SSL certificate for Jenkins
   command: >
@@ -91,7 +103,7 @@
   when:
     - "'jenkins' in group_names"
     - not jenkins_cert.stat.exists
-    - ansible_default_ipv4.address in dns_check.stdout
+    - vm_external_ip in dns_check.stdout
   register: jenkins_certbot_result
   ignore_errors: yes
 
@@ -106,7 +118,7 @@
   when:
     - "'sonarqube' in group_names"
     - not sonarqube_cert.stat.exists
-    - ansible_default_ipv4.address in dns_check.stdout
+    - vm_external_ip in dns_check.stdout
   register: sonarqube_certbot_result
   ignore_errors: yes
 
@@ -121,7 +133,7 @@
   when:
     - "'nexus' in group_names"
     - not nexus_cert.stat.exists
-    - ansible_default_ipv4.address in dns_check.stdout
+    - vm_external_ip in dns_check.stdout
   register: nexus_certbot_result
   ignore_errors: yes
 
@@ -130,14 +142,14 @@
     msg:
       - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       - "SSL Certificate Status:"
-      - "{% if 'jenkins' in group_names %}Jenkins:    {% if jenkins_certbot_result is succeeded %}✓ Obtained{% elif jenkins_cert.stat.exists %}✓ Already exists{% elif ansible_default_ipv4.address not in dns_check.stdout %}⚠ Skipped - DNS not configured{% else %}✗ Failed - Check logs{% endif %}{% endif %}"
-      - "{% if 'sonarqube' in group_names %}SonarQube: {% if sonarqube_certbot_result is succeeded %}✓ Obtained{% elif sonarqube_cert.stat.exists %}✓ Already exists{% elif ansible_default_ipv4.address not in dns_check.stdout %}⚠ Skipped - DNS not configured{% else %}✗ Failed - Check logs{% endif %}{% endif %}"
-      - "{% if 'nexus' in group_names %}Nexus:     {% if nexus_certbot_result is succeeded %}✓ Obtained{% elif nexus_cert.stat.exists %}✓ Already exists{% elif ansible_default_ipv4.address not in dns_check.stdout %}⚠ Skipped - DNS not configured{% else %}✗ Failed - Check logs{% endif %}{% endif %}"
+      - "{% if 'jenkins' in group_names %}Jenkins:    {% if jenkins_certbot_result is succeeded %}✓ Obtained{% elif jenkins_cert.stat.exists %}✓ Already exists{% elif vm_external_ip not in dns_check.stdout %}⚠ Skipped - DNS not configured{% else %}✗ Failed - Check logs{% endif %}{% endif %}"
+      - "{% if 'sonarqube' in group_names %}SonarQube: {% if sonarqube_certbot_result is succeeded %}✓ Obtained{% elif sonarqube_cert.stat.exists %}✓ Already exists{% elif vm_external_ip not in dns_check.stdout %}⚠ Skipped - DNS not configured{% else %}✗ Failed - Check logs{% endif %}{% endif %}"
+      - "{% if 'nexus' in group_names %}Nexus:     {% if nexus_certbot_result is succeeded %}✓ Obtained{% elif nexus_cert.stat.exists %}✓ Already exists{% elif vm_external_ip not in dns_check.stdout %}⚠ Skipped - DNS not configured{% else %}✗ Failed - Check logs{% endif %}{% endif %}"
       - ""
-      - "{% if ansible_default_ipv4.address not in dns_check.stdout %}⚠️  SSL certificates skipped because DNS is not configured correctly.{% endif %}"
-      - "{% if ansible_default_ipv4.address not in dns_check.stdout %}   To obtain certificates manually, SSH into each VM and run:{% endif %}"
-      - "{% if ansible_default_ipv4.address not in dns_check.stdout %}   sudo certbot --nginx -d YOUR_DOMAIN --non-interactive --agree-tos -m {{ letsencrypt_email }}{% endif %}"
-      - "{% if ansible_default_ipv4.address not in dns_check.stdout %}   Or use: just setup-ssl{% endif %}"
+      - "{% if vm_external_ip not in dns_check.stdout %}⚠️  SSL certificates skipped because DNS is not configured correctly.{% endif %}"
+      - "{% if vm_external_ip not in dns_check.stdout %}   To obtain certificates manually, SSH into each VM and run:{% endif %}"
+      - "{% if vm_external_ip not in dns_check.stdout %}   sudo certbot --nginx -d YOUR_DOMAIN --non-interactive --agree-tos -m {{ letsencrypt_email }}{% endif %}"
+      - "{% if vm_external_ip not in dns_check.stdout %}   Or use: just setup-ssl{% endif %}"
       - "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 - name: Setup auto-renewal with cron
